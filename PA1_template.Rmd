@@ -1,25 +1,119 @@
----
-title: "Reproducible Research: Peer Assessment 1"
-output: 
-  html_document:
-    keep_md: true
----
+Course Project 1
+=================
+##Load and process the data
+- Step 1a: Load the packages
+```{r,results="hide"}
+library(dplyr)
+library(lubridate)
+library(ggplot2)
+```
+- Step 1b: Load the data
+```{r}
+df <- read.csv("activity.csv",header=TRUE)
+```
+- Step 2: Clean the data
+```{r}
+df$date <- ymd(df$date)
+```
+##What is the mean total number of steps taken per day?
 
+- Step 1: Calculate the total number of steps taken per day
 
-## Loading and preprocessing the data
+```{r}
+data <- df%>%
+    filter(!is.na(steps))%>%
+    group_by(date)%>%
+    summarize(steps=sum(steps))%>%
+    print
+```
 
+- Step 2: Plot a histogram of the total number of steps taken each day
 
+```{r}
+hist(data$steps)
+```
 
-## What is mean total number of steps taken per day?
+- Step 3: Calculate the mean and media
 
+```{r}
+mean<-mean(data$steps,na.rm=TRUE)
+mean
+median<-median(data$steps,na.rm=TRUE)
+median
+```
 
+##What is the average daily activity pattern?
+ 
+- Step 1: Time series plot of the 5-minute interval and average number of steps taken across all days
 
-## What is the average daily activity pattern?
+```{r}
+timeseries <- df%>%
+    filter(!is.na(steps))%>%
+    group_by(interval)%>%
+    summarize(steps=mean(steps))
+plot(x=timeseries$interval,y=timeseries$steps,type="l")
+```
 
+- Step 2: What is the maximum interval?
+```{r}
+maximum<-timeseries[which(timeseries$steps==max(timeseries$steps)),]
+maximum$interval
+```
 
+##Finding missing values
 
-## Imputing missing values
+- Step 1: Report the total number of missing values in the dataset
 
+```{r}
+#na_set <- is.na(df$steps)
+#count(na_set)
+```
 
+- Step 2&3: Fill in missing values & create new dataset with the values filled in
+```{r}
+new_df <- df
+na_set <- is.na(new_df$steps)
+averageSteps <- tapply(new_df$steps,new_df$interval,mean,na.rm=TRUE,simplify=TRUE)
+new_df$steps[na_set]<-averageSteps[as.character(new_df$interval[na_set])]
+```
 
-## Are there differences in activity patterns between weekdays and weekends?
+- Step 4: Count the number of steps
+```{r}
+newNew_data <- new_df%>%
+    group_by(date)%>%
+    summarize(steps=sum(steps))%>%
+    print
+```
+
+- Step 5: Create a histogram and calculate the mean and median of steps for the new dataset
+
+```{r}
+hist(newNew_data$steps)
+new_mean<-mean(newNew_data$steps)
+new_mean
+new_median<-median(newNew_data$steps)
+new_median
+```
+
+##Are there differences in activity patterns between weekdays and weekends?
+
+- Step 1: Create a factor variable for weekday/weekend
+
+```{r}
+new_df <- mutate(new_df, typeday = ifelse(weekdays(new_df$date) == "Saturday" | weekdays(new_df$date) == "Sunday", "weekend", "weekday"))
+new_df$typeday <- as.factor(new_df$typeday)
+head(new_df)
+```
+
+- Step 2: Plot the difference between weekday and weekend 5-minute interval averages
+
+```{r}
+fivemin<-new_df%>%
+    group_by(interval,typeday)%>%
+    summarize(steps=mean(steps))
+
+s <- ggplot(fivemin, aes(x=interval, y=steps, color = typeday)) +
+  geom_line() +
+  facet_wrap(~typeday, ncol = 1, nrow=2)
+print(s)
+```
